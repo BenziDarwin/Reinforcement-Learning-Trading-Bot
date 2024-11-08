@@ -3,6 +3,7 @@
 # Trading Parameters
 INITIAL_BALANCE = 10000  # Initial balance in USD
 MAX_POSITIONS = 5        # Maximum number of positions
+MAX_BUY = 2        # Maximum number of positions
 MAX_LOTS = 1.0          # Maximum lot size per trade
 RISK_PER_TRADE = 0.02   # 2% risk per trade
 

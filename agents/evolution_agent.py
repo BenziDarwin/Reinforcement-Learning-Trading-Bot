@@ -8,7 +8,7 @@ from utils.state_utils import get_state
 from config.trading_config import POPULATION_SIZE, SIGMA, LEARNING_RATE, WINDOW_SIZE
 
 class TradingAgent:
-    def __init__(self, model, initial_balance: float, max_buy: int, max_sell: int):
+    def __init__(self, model, initial_balance: float, max_buy: int, max_sell: int, skip: int = 1, short_window: int = 5, long_window: int = 20):
         """
         Initialize the trading agent with MT5 for XAUUSD.
         
@@ -22,6 +22,9 @@ class TradingAgent:
         self.initial_balance = initial_balance
         self.max_buy = max_buy
         self.max_sell = max_sell
+        self.skip = skip
+        self.short_window = short_window  # Short-term moving average window size
+        self.long_window = long_window    # Long-term moving average window size
         
         self.es = Deep_Evolution_Strategy(
             self.model.get_weights(),
@@ -77,25 +80,36 @@ class TradingAgent:
         self.es.train(iterations, print_every=checkpoint)
 
     def trade(self, prices: List[float], plot: bool = True) -> Tuple[float, List[dict]]:
-        """Simulate trading activity and calculate final balance."""
+        """Simulate trading activity with improved strategy."""
         initial_money = self.initial_balance
+        starting_money = initial_money
         state = get_state(prices, 0, WINDOW_SIZE + 1)
-        inventory = []
-        trade_history = []
         states_buy = []
         states_sell = []
-
-        for t in range(len(prices) - 1):
+        inventory = []
+        quantity = 0
+        trade_history = []
+        skip = 3  # Increase skip to reduce trade frequency
+        min_profit_percent = 0.1  # Lower minimum profit threshold to allow more trades
+        
+        for t in range(0, len(prices) - 1, skip):
             action, buy_units = self.act(state)
             next_state = get_state(prices, t + 1, WINDOW_SIZE + 1)
             current_price = prices[t]
             
-            # Buy action
+            # Calculate moving averages (Optional: Relax or remove trend conditions)
+            if t >= self.long_window:
+                short_avg = np.mean(prices[t - self.short_window + 1 : t + 1])
+                long_avg = np.mean(prices[t - self.long_window + 1 : t + 1])
+                downtrend = current_price < long_avg  # Optional condition for trend
+
+            # Buy condition
             if action == 1 and initial_money >= current_price:
                 buy_units = max(1, min(buy_units, self.max_buy))
                 total_buy = buy_units * current_price
                 initial_money -= total_buy
                 inventory.append(total_buy)
+                quantity += buy_units
                 states_buy.append(t)
                 trade_history.append({
                     'type': 'buy',
@@ -103,10 +117,21 @@ class TradingAgent:
                     'units': buy_units,
                     'balance': initial_money
                 })
+                print(f"Day {t}: Buy {buy_units} units at price {current_price}, Total Balance: {initial_money}")
 
-            # Sell action
+            # Sell condition
             elif action == 2 and len(inventory) > 0:
-                sell_units = min(len(inventory), self.max_sell)
+                bought_price = inventory.pop(0)
+                sell_units = min(quantity, self.max_sell)
+                if sell_units < 1:
+                    continue
+                
+                # Check for profit threshold (Optional: Lower threshold or remove it)
+                profit_percent = ((current_price - bought_price) / bought_price) * 100
+                if profit_percent < min_profit_percent:
+                    continue  # Skip trades with low profit (can remove this condition)
+
+                quantity -= sell_units
                 total_sell = sell_units * current_price
                 initial_money += total_sell
                 states_sell.append(t)
@@ -114,12 +139,21 @@ class TradingAgent:
                     'type': 'sell',
                     'price': current_price,
                     'units': sell_units,
-                    'balance': initial_money
+                    'balance': initial_money,
+                    'investment_return': profit_percent
                 })
-                inventory = []
-            
+                print(
+                    f"Day {t}: Sell {sell_units} units at price {current_price}, "
+                    f"Investment Return: {profit_percent:.2f}%, Total Balance: {initial_money}"
+                )
+
             state = next_state
-        
+
+        # Calculate and print total investment gain/loss
+        total_investment_return = ((initial_money - starting_money) / starting_money) * 100
+        print(f"\nTotal Gained: {initial_money - starting_money}, Total Investment Return: {total_investment_return:.2f}%")
+
+        # Plot trades if specified
         if plot:
             self._plot_trades(prices, states_buy, states_sell)
         
@@ -135,3 +169,4 @@ class TradingAgent:
         plt.legend()
         plt.grid(True)
         plt.show()
+

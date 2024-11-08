@@ -93,7 +93,7 @@ def main():
     
     # Initialize model and agent
     model = Model(WINDOW_SIZE, LAYER_SIZE, OUTPUT_SIZE)
-    agent = TradingAgent(model, INITIAL_BALANCE, MAX_POSITIONS, MAX_POSITIONS)  # Provide `max_sell`
+    agent = TradingAgent(model, INITIAL_BALANCE, MAX_BUY, MAX_BUY)  # Provide `max_sell`
 
     # Check for existing model
     if not load_model(agent):
