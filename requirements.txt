@@ -4,3 +4,4 @@ matplotlib==3.9.2
 seaborn==0.13.2
 MetaTrader5==5.0.45  # For live trading with MT5
 python-dotenv==1.0.0
+fickling>=0.1.3,~=0.1.0

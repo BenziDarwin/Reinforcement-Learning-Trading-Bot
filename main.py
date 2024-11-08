@@ -9,6 +9,7 @@ import pickle
 from models.neural_model import Model
 from agents.evolution_agent import TradingAgent
 from config.trading_config import *
+import fickling
 
 def fetch_xauusd_data(timeframe: str = TIMEFRAME, periods: int = LOOKBACK_PERIOD):
     """Fetch XAUUSD historical data from MetaTrader5"""
@@ -47,7 +48,7 @@ def load_model(agent: TradingAgent, filename: str = 'xauusd_model.pkl'):
     model_path = os.path.join('models/saved', filename)
     if os.path.exists(model_path):
         with open(model_path, 'rb') as f:
-            weights = pickle.load(f)
+            weights = fickling.load(f)
             agent.model.set_weights(weights)
         print(f"Model loaded from {model_path}")
         return True
